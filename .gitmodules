@@ -1,0 +1,3 @@
+[submodule "hermes-3"]
+	path = hermes-3
+	url = git@github.com:boutproject/hermes-3.git
