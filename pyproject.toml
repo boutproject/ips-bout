@@ -22,6 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "ipsframework",
+    "hypnotoad",
 ]
 dynamic = ["version"]
 
