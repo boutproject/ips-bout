@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-ips.py --config=ipshermes.config --platform=platform.conf
+ips.py --config=ipsbout.config --platform=platform.conf
