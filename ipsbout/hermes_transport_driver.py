@@ -15,6 +15,9 @@ class hermes_transport_driver(Component):
         logging.basicConfig(level=logging.INFO)
         logger.info(f'Created {self.__class__}')
 
+    def restart(self):
+        pass
+
     def step(self, timestamp=0.0):
         try:
             worker_comp = self.services.get_port('GRIDGEN')
