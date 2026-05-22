@@ -45,13 +45,13 @@ class bout_worker(Component):
         logger.info(f"BOUT++ step {timestamp}")
 
         if (not hasattr(self, "OPTIONS_INP")) or (self.OPTIONS_INP == ""):
-            raise ValueError("OPTIONS_INP must be set to the input options file")
+            raise ValueError("OPTIONS_INP must be set to the input options file path")
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
-            raise ValueError("GRIDFILE must be set to the input grid file.")
+            raise ValueError("GRIDFILE must be set to the input grid file path.")
 
         if (not hasattr(self, "BIN_PATH")) or (self.BIN_PATH == ""):
-            raise ValueError("BIN_PATH must be set to a BOUT++ executable")
+            raise ValueError("BIN_PATH must be set to a BOUT++ executable path")
 
         if (not hasattr(self, "NPROC")) or (self.NPROC == ""):
             raise ValueError("NPROC must be set to a number of processors")
