@@ -1,3 +1,4 @@
 ipsframework
 hypnotoad
 boututils
+xarray

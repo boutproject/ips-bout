@@ -93,7 +93,7 @@ class MagneticGeometry:
             zz = z - self.coils[i]["z"]
 
             alpha2, beta2, beta, k2, C = self.loop_current_coeff(
-                rho=rho, zz=zz, a=a, I=sinty
+                rho=rho, zz=zz, a=a, sinty=sinty
             )
 
             B_rho += (
@@ -125,7 +125,7 @@ class MagneticGeometry:
             zz = z - self.coils[i]["z"]
 
             alpha2, beta2, beta, k2, C = self.loop_current_coeff(
-                rho=rho, zz=zz, a=a, I=sinty
+                rho=rho, zz=zz, a=a, sinty=sinty
             )
 
             B_z += (

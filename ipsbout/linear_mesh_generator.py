@@ -6,7 +6,83 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class bout_linear_mesh_worker(Component):
+def imas_coils(pf_active):
+    """
+    Extract coil information from an IMAS pf_active IDS
+    """
+    # Power supplies
+    supply_currents = [supply["current"]["data"] for supply in pf_active["supply"]]
+
+    # Coils
+    coil_rs = []
+    coil_zs = []
+    coil_turns = []
+    for coil in pf_active["coil"]:
+        coil_rs.append(coil["element"][0]["geometry"]["rectangle"]["r"])
+        coil_zs.append(coil["element"][0]["geometry"]["rectangle"]["z"])
+        coil_turns.append(coil["element"][0]["turns_with_sign"])
+    coil_rs = np.array(coil_rs)
+    coil_zs = np.array(coil_zs)
+    coil_turns = np.array(coil_turns)
+    coil_currents = np.zeros(len(coil_turns))
+
+    # Connections
+    for circuit in pf_active["circuit"]:
+        supply_current = supply_currents[circuit["supply_index"]]
+        coil_currents[circuit["coil_indices"]] = supply_current
+    coil_currents *= coil_turns
+
+    return {"r": coil_rs, "z": coil_zs, "current": coil_currents}
+
+
+def calc_penalty_mask(grid_data, wall_rz):
+    """
+    calculate which cells are outside the wall.
+    returns a penalty_mask 2D array.
+
+    Adapted from Hypnotoad
+    """
+
+    from hypnotoad import Point2D
+    from hypnotoad.core.equilibrium import find_intersections, calc_distance
+
+    Rxy = grid_data["Rxy"]
+    Rxy_ylow = grid_data["Rxy_ylow"]
+    Zxy_ylow = grid_data["Zxy_ylow"]
+
+    penalty_mask = np.zeros(Rxy.shape)
+
+    # A point inside the domain.
+    p0 = Point2D(0.01, 1.0)
+
+    for i in range(Rxy.shape[0]):
+        for j in range(Rxy.shape[1]):
+            # Check if cell Y edges are outside the wall
+            p1 = Point2D(Rxy_ylow[i, j], Zxy_ylow[i, j])
+            intersects = find_intersections(wall_rz, p0, p1)
+            p1_outside = False if intersects is None else intersects.shape[0] % 2 == 1
+
+            p2 = Point2D(Rxy_ylow[i, j + 1], Zxy_ylow[i, j + 1])
+            intersects = find_intersections(wall_rz, p0, p2)
+            p2_outside = False if intersects is None else intersects.shape[0] % 2 == 1
+
+            if p1_outside and p2_outside:
+                # Both ends of the cell are outside the wall
+                penalty_mask[i, j] = 1.0
+            elif p1_outside or p2_outside:
+                # Cell crosses the wall
+                intersects = find_intersections(wall_rz, p1, p2)
+                if intersects is None:
+                    # Something odd going on
+                    continue
+                pi = Point2D(intersects[0, 0], intersects[0, 1])  # Intersection point
+                penalty_mask[i, j] = calc_distance(
+                    p1 if p1_outside else p2, pi
+                ) / calc_distance(p1, p2)
+    return penalty_mask
+
+
+class linear_mesh_generator(Component):
     """
     # BOUT++ linear mesh generator
 
@@ -38,7 +114,7 @@ class bout_linear_mesh_worker(Component):
         super().__init__(services, config)
         logger.info(f"Created {self.__class__}")
 
-        if (not hasattr(self, "MACHINE_FILE")) or (self.MACHINE_JSON == ""):
+        if (not hasattr(self, "MACHINE_FILE")) or (self.MACHINE_FILE == ""):
             raise ValueError(
                 "MACHINE_FILE must be set to the machine description JSON file"
             )
@@ -76,86 +152,6 @@ class bout_linear_mesh_worker(Component):
             )
         self.z_max = float(self.Z_MAX)
 
-    def imas_coils(pf_active):
-        """
-        Extract coil information from an IMAS pf_active IDS
-        """
-        # Power supplies
-        supply_currents = [supply["current"]["data"] for supply in pf_active["supply"]]
-
-        # Coils
-        coil_rs = []
-        coil_zs = []
-        coil_turns = []
-        for coil in pf_active["coil"]:
-            coil_rs.append(coil["element"][0]["geometry"]["rectangle"]["r"])
-            coil_zs.append(coil["element"][0]["geometry"]["rectangle"]["z"])
-            coil_turns.append(coil["element"][0]["turns_with_sign"])
-        coil_rs = np.array(coil_rs)
-        coil_zs = np.array(coil_zs)
-        coil_turns = np.array(coil_turns)
-        coil_currents = np.zeros(len(coil_turns))
-
-        # Connections
-        for circuit in pf_active["circuit"]:
-            supply_current = supply_currents[circuit["supply_index"]]
-            coil_currents[circuit["coil_indices"]] = supply_current
-        coil_currents *= coil_turns
-
-        return {"r": coil_rs, "z": coil_zs, "current": coil_currents}
-
-    def calcPenaltyMask(grid_data, wall_rz):
-        """
-        calculate which cells are outside the wall.
-        returns a penalty_mask 2D array.
-
-        Adapted from Hypnotoad
-        """
-
-        from hypnotoad import Point2D
-        from hypnotoad.core.equilibrium import find_intersections, calc_distance
-
-        Rxy = grid_data["Rxy"]
-        Rxy_ylow = grid_data["Rxy_ylow"]
-        Zxy_ylow = grid_data["Zxy_ylow"]
-
-        penalty_mask = np.zeros(Rxy.shape)
-
-        # A point inside the domain.
-        p0 = Point2D(0.01, 1.0)
-
-        for i in range(Rxy.shape[0]):
-            for j in range(Rxy.shape[1]):
-                # Check if cell Y edges are outside the wall
-                p1 = Point2D(Rxy_ylow[i, j], Zxy_ylow[i, j])
-                intersects = find_intersections(wall_rz, p0, p1)
-                p1_outside = (
-                    False if intersects is None else intersects.shape[0] % 2 == 1
-                )
-
-                p2 = Point2D(Rxy_ylow[i, j + 1], Zxy_ylow[i, j + 1])
-                intersects = find_intersections(wall_rz, p0, p2)
-                p2_outside = (
-                    False if intersects is None else intersects.shape[0] % 2 == 1
-                )
-
-                if p1_outside and p2_outside:
-                    # Both ends of the cell are outside the wall
-                    penalty_mask[i, j] = 1.0
-                elif p1_outside or p2_outside:
-                    # Cell crosses the wall
-                    intersects = find_intersections(wall_rz, p1, p2)
-                    if intersects is None:
-                        # Something odd going on
-                        continue
-                    pi = Point2D(
-                        intersects[0, 0], intersects[0, 1]
-                    )  # Intersection point
-                    penalty_mask[i, j] = calc_distance(
-                        p1 if p1_outside else p2, pi
-                    ) / calc_distance(p1, p2)
-        return penalty_mask
-
     def step(self, timestamp=0.0):
         from . import MirrorMesh as mm
         from boututils.datafile import DataFile
@@ -167,7 +163,7 @@ class bout_linear_mesh_worker(Component):
             machine_data = json.load(f)
 
         # IMAS pf_active IDS
-        coils = self.imas_coils(machine_data["pf_active"])
+        coils = imas_coils(machine_data["pf_active"])
 
         # IMAS wall IDS
         wall = machine_data["wall"]["description_2d"][0]["limiter"]["unit"][0][
@@ -189,7 +185,7 @@ class bout_linear_mesh_worker(Component):
         grid_data = AMM.orthogonal_mesh()
         AMM.generate_hermes3_mesh(grid_data, save_dir=self.GRIDFILE)
 
-        penalty_mask = self.calcPenaltyMask(grid_data, wall_rz)
+        penalty_mask = calc_penalty_mask(grid_data, wall_rz)
 
         with DataFile(self.GRIDFILE, write=True) as f:
             f["penalty_mask"] = penalty_mask
