@@ -960,8 +960,8 @@ class AxisymMirrorMesh(MagneticGeometry):
         ds = xr.Dataset()
         ds["nx"] = xr.DataArray(np.array(self.nrho + 4, dtype=np.int32))
         ds["ny"] = xr.DataArray(np.array(self.nz, dtype=np.int32))
-        # ds['nz'] = xr.DataArray(np.array(self.ntheta, dtype=np.int32))
-        # ds['dz'] = xr.DataArray(np.zeros((self.nrho+4, self.nz)) + (2.*np.pi / self.ntheta))
+        ds['nz'] = xr.DataArray(np.array(self.ntheta, dtype=np.int32))
+        ds['dz'] = xr.DataArray(np.zeros((self.nrho+4, self.nz)) + (2.*np.pi / self.ntheta))
 
         # ensure the regions belongs to the open-field-line region
         # NOTE: Are 0 and -1 the same?

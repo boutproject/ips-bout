@@ -50,6 +50,12 @@ core_pe = core_ne * core_te
 [input]
 error_on_unused_options=false
 
+[output]
+type = adios
+
+[restart_files]
+type = adios
+
 [mesh]
 
 file = "{gridfile}"
