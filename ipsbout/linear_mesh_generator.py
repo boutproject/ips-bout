@@ -417,3 +417,6 @@ class linear_mesh_generator(Component):
 
         with DataFile(self.GRIDFILE, write=True) as f:
             f["penalty_mask"] = penalty_mask
+
+        self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
+        self.services.update_state()

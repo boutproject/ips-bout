@@ -63,11 +63,11 @@ class electron_heating_xyz(Component):
             NPROC = 1
             MODULE = ipsbout.electron_heating_xyz
             GRIDFILE = proto_mpex.nc
-            HEATING_FILE = ecrh_profile.txt
-            AXIAL_OFFSET = 0.5
-            TOTAL_POWER = 12500.0
-            INPUT_FILES = ${GRIDFILE} ${HEATING_FILE}
-            OUTPUT_FILES = ${GRIDFILE}
+            HEATING_FILE = helicon_profile.txt
+            AXIAL_OFFSET = 1.745
+            TOTAL_POWER = 16e3
+            INPUT_FILES = ${HEATING_FILE}
+            STATE_FILES = ${GRIDFILE}
 
     Raises
     ------
@@ -369,6 +369,7 @@ class electron_heating_xyz(Component):
             or negative.  See :meth:`_interpolate_to_mesh` for details.
         """
         self.services.stage_input_files(self.INPUT_FILES)
+        self.services.stage_state() # Fetch GRIDFILE to be modified
 
         xyz, Q = self._load_heating_data(self.HEATING_FILE, self.axial_offset)
 
@@ -403,3 +404,4 @@ class electron_heating_xyz(Component):
         logger.info(f"Pe_src written to {self.GRIDFILE}")
 
         self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
+        self.services.update_state() # Update GRIDFILE in the state
