@@ -1,4 +1,13 @@
-from ipsframework import Component
+try:
+    from ipsframework import Component
+except ModuleNotFoundError:
+    # Allow importing the standalone helper functions in environments where the
+    # IPS framework is not installed (e.g., unit tests).
+    class Component:  # type: ignore[no-redef]
+        def __init__(self, *args, **kwargs):
+            raise ModuleNotFoundError(
+                "ipsframework is required to instantiate ipsbout.linear_mesh_generator.linear_mesh_generator"
+            )
 import numpy as np
 import json
 import logging

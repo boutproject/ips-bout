@@ -23,12 +23,14 @@ classifiers = [
 dependencies = [
     "ipsframework",
     "hypnotoad",
+    "numpy",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 tests = [
     "pytest",
+    "numpy",
 ]
 docs = [
     "sphinx >= 5.3",
@@ -44,4 +46,3 @@ version = { attr = "setuptools_scm.get_version" }
 
 [tool.setuptools_scm]
 write_to = "ipsbout/_version.py"
-
