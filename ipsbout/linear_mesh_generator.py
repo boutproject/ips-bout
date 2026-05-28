@@ -8,9 +8,12 @@ except ModuleNotFoundError:
             raise ModuleNotFoundError(
                 "ipsframework is required to instantiate ipsbout.linear_mesh_generator.linear_mesh_generator"
             )
-import numpy as np
+
+
 import json
 import logging
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +156,7 @@ def calc_penalty_mask(grid_data, wall_rz):
         values indicate partial wall intersection.
     """
     from hypnotoad import Point2D
-    from hypnotoad.core.equilibrium import find_intersections, calc_distance
+    from hypnotoad.core.equilibrium import calc_distance, find_intersections
 
     Rxy = grid_data["Rxy"]
     Rxy_ylow = grid_data["Rxy_ylow"]
@@ -328,7 +331,9 @@ class linear_mesh_generator(Component):
         self.naxial = int(self.N_AXIAL_CELLS)
 
         if (not hasattr(self, "N_AZIMUTHAL_CELLS")) or (self.N_AZIMUTHAL_CELLS == ""):
-            raise ValueError("N_AZIMUTHAL_CELLS must be set to the number of azimuthal cells.")
+            raise ValueError(
+                "N_AZIMUTHAL_CELLS must be set to the number of azimuthal cells."
+            )
         self.nazimuthal = int(self.N_AZIMUTHAL_CELLS)
 
         if (not hasattr(self, "R_MIN")) or (self.R_MIN == ""):
@@ -390,8 +395,9 @@ class linear_mesh_generator(Component):
             If :class:`MirrorMesh.AxisymMirrorMesh` fails to converge on an
             orthogonal mesh for the given coil configuration and domain bounds.
         """
-        from . import MirrorMesh as mm
         from boututils.datafile import DataFile
+
+        from . import MirrorMesh as mm
 
         logger.debug(f"INPUT_FILES: {self.INPUT_FILES}")
         logger.debug(f"OUTPUT_FILES: {self.OUTPUT_FILES}")

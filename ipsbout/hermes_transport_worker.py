@@ -2,9 +2,10 @@
 Transport simulations with Hermes-3/BOUT++
 """
 
-from .bout_worker import bout_worker
-import os
 import logging
+import os
+
+from .bout_worker import bout_worker
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,12 @@ mxstep = 1e6
 
 [hermes]
 components = (d+, d, e,
-              collisions, sheath_boundary_simple, recycling,
+              braginskii_collisions,
+              braginskii_heat_exchange,
+              braginskii_friction,
+              braginskii_ion_viscosity,
+              sheath_boundary_simple,
+              recycling,
               sound_speed,
               reactions,
               electron_force_balance)

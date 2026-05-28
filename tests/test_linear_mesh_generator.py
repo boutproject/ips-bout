@@ -33,7 +33,9 @@ def _install_fake_hypnotoad(monkeypatch, *, intersections_plan):
 
     monkeypatch.setitem(sys.modules, "hypnotoad", hypnotoad)
     monkeypatch.setitem(sys.modules, "hypnotoad.core", hypnotoad_core)
-    monkeypatch.setitem(sys.modules, "hypnotoad.core.equilibrium", hypnotoad_core_equilibrium)
+    monkeypatch.setitem(
+        sys.modules, "hypnotoad.core.equilibrium", hypnotoad_core_equilibrium
+    )
 
 
 def test_imas_coils_maps_supply_to_coils_and_applies_turns():
@@ -145,4 +147,3 @@ def test_calc_penalty_mask_crossing_wall_is_fraction(monkeypatch):
 
     mask = calc_penalty_mask(grid_data, wall_rz)
     np.testing.assert_allclose(mask, np.array([[0.5]]))
-
