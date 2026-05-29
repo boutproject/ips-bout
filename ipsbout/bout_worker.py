@@ -1,3 +1,26 @@
+"""IPS base worker for running BOUT++-style executables.
+
+`bout_worker` is intended to be subclassed by IPS worker components that
+generate a BOUT++ input file (typically `BOUT.inp`) and then run a BOUT++
+executable (e.g. Hermes-3) via `ServicesProxy.launch_task`.
+
+This class centralises a few implementation decisions:
+
+- **Common launch mechanics**: build the `-f <options> -d <cwd>` command line
+  and run via IPS services.
+- **Restart handling**: accept a restart tarball (`RESTART_TARFILE`), extract
+  it before launching, and tar up any `BOUT.restart*` outputs afterwards.
+- **Processor selection**: reduce `NPROC` to a valid decomposition for the
+  provided `GRIDFILE` by inspecting mesh metadata.
+
+Subclasses are responsible for:
+
+- ensuring required input files are present in the working directory
+  (usually via `stage_input_files(...)` / `stage_state(...)`);
+- writing the options file and setting `self.OPTIONS_INP`;
+- setting `self.GRIDFILE`, `self.BIN_PATH`, and `self.NPROC`.
+"""
+
 import tarfile
 from pathlib import Path
 
@@ -6,35 +29,49 @@ from ipsframework import Component
 
 
 class bout_worker(Component):
-    """
-    # BOUT++ simulation
+    """Base class for BOUT++-based IPS worker components.
 
-    This class can run standalone BOUT++ simulations, or can be used
-    as a base class for specific BOUT++ models.
+    Required attributes (typically set from IPS config)
+    ---------------------------------------------------
+    - ``OPTIONS_INP``: path to the BOUT.inp/options file in the work dir.
+    - ``GRIDFILE``: path to the BOUT++ grid file in the work dir.
+    - ``BIN_PATH``: path to the BOUT++/Hermes executable.
+    - ``NPROC``: requested processor count (may be reduced to a valid split).
 
-    ## Configuration options
+    Optional attributes
+    -------------------
+    - ``RESTART_TARFILE``: a tarball containing restart files. If present,
+      it is extracted before launch, and an updated tarball is written after
+      the run completes.
 
-    OPTIONS_INP = BOUT.inp options file
-    GRIDFILE = BOUT++ grid file
-    BIN_PATH = BOUT++ executable
-
-    ## Optional inputs
-    RESTART_TARFILE = BOUT++ restart tarfile
+    Notes
+    -----
+    IPS services should not be called from ``__init__``. Any logging or other
+    services interaction belongs in ``init(...)`` or later lifecycle methods.
     """
 
     def __init__(self, services, config):
-        """
-        Starting a new simulation
+        """Construct the component.
+
+        IPS injects configuration values as attributes before calling
+        ``__init__``. This constructor does not perform validation or logging
+        because IPS services should not be used in ``__init__``.
         """
         super().__init__(services, config)
 
-    def step(self, timestamp=0.0):
-        """
-        Run a BOUT++ simulation
+    def init(self, timestamp=0.0, **kwargs):
+        """IPS lifecycle hook called before the first step.
 
-        This will use at most self.NPROC processors. Fewer processors
-        will be used if necessary to decompose the grid file equally
-        between processors.
+        Subclasses may override this, but should typically call
+        ``super().init(...)``.
+        """
+        self.services.info(f"Created {self.__class__}")
+
+    def step(self, timestamp=0.0):
+        """Run a BOUT++ simulation in the IPS working directory.
+
+        The caller/subclass must set ``OPTIONS_INP``, ``GRIDFILE``, ``BIN_PATH``,
+        and ``NPROC`` before calling this method.
         """
         self.services.info(f"BOUT++ step {timestamp}")
 
@@ -97,11 +134,11 @@ class bout_worker(Component):
         self.services.info("Finished BOUT++ step")
 
     def num_processors(self, max_nprocs: int) -> int:
-        """Return the number of processors to be used, that is
-        lower than or equal to `max_nprocs`.
+        """Choose a valid processor count <= ``max_nprocs`` for ``self.GRIDFILE``.
 
-        This will open `self.GRIDFILE` to identify how many processors
-        can be used
+        Reads mesh metadata from ``self.GRIDFILE`` and searches for the largest
+        processor count not exceeding ``max_nprocs`` that satisfies BOUT++'s
+        decomposition constraints.
         """
         MXG = 2  # Number of X guard cells
         MYG = 2

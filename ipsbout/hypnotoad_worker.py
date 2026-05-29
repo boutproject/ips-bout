@@ -1,31 +1,42 @@
 from ipsframework import Component
 
 class hypnotoad_worker(Component):
-    """
-    # Hypnotoad mesh generator
+    """Hypnotoad mesh-generator worker.
 
-    Given a GEQDSK file and configuration settings, generate a BOUT++
-    mesh that can be used in Hermes-3 simulations.
+    This worker wraps Hypnotoad to generate a BOUT++ grid file from a tokamak
+    equilibrium in G-EQDSK format.
 
-    ## Configuration options
+    Configuration parameters
+    ------------------------
+    Required:
+    - ``GEQDSK``: input equilibrium file in G-EQDSK format.
+    - ``GRIDFILE``: output BOUT++ grid filename.
 
-    GEQDSK = File containing equilibrium in G-EQDSK format
-    OPTIONS_YAML = File containing mesh generation options in YAML format
-    GRIDFILE = BOUT++ grid file to be created
+    Optional:
+    - ``OPTIONS_YAML``: YAML file of Hypnotoad settings.
 
-    The following options should be set:
+    Staging conventions
+    -------------------
+    The typical IPS pattern is:
+    - ``INPUT_FILES = ${OPTIONS_YAML} ${GEQDSK}``
+    - ``OUTPUT_FILES = ${GRIDFILE}``
 
-    INPUT_FILES = ${OPTIONS_YAML} ${GEQDSK}
-    OUTPUT_FILES = ${GRIDFILE}
-
+    Notes
+    -----
+    Hypnotoad imports are done inside :meth:`step` so that this module can be
+    imported in environments without Hypnotoad installed (e.g. documentation
+    builds) as long as the component is not executed.
     """
     def __init__(self, services, config):
+        """Construct the worker."""
         super().__init__(services, config)
 
     def init(self, timestamp=0.0, **kwargs):
+        """IPS lifecycle hook called before the first step."""
         self.services.info(f"Created {self.__class__}")
 
     def step(self, timestamp=0.0):
+        """Generate the grid file using Hypnotoad and write ``GRIDFILE``."""
         self.services.info("Importing hypnotoad modules")
         from hypnotoad.cases import tokamak
         from hypnotoad.core.mesh import BoutMesh

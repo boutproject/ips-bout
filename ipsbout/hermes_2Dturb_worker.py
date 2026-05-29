@@ -125,33 +125,33 @@ options_defaults = {
 
 
 class hermes_2Dturb_worker(bout_worker):
-    """
-    Hermes-3 2D (drift-plane) turbulence simulation.
-    Inherits from `bout_worker` so that its functionality for running BOUT++
-    simulations can be reused.
+    """Hermes-3 2D (drift-plane) turbulence worker.
+
+    This is a small convenience wrapper around :class:`ipsbout.bout_worker.bout_worker`
+    that writes a 2D turbulence `BOUT.inp` (with `MYG = 0`) and launches a
+    Hermes/BOUT++ executable.
+
+    Configuration parameters
+    ------------------------
+    Required:
+    - ``GRIDFILE``: path to a BOUT++ grid file available in the working dir.
+    - ``BIN_PATH``: Hermes-3 executable path.
+    - ``NPROC``: requested processor count.
+
+    Notes
+    -----
+    The input options are defined by `options_template`/`options_defaults`.
+    Advanced workflows should subclass this worker or modify `self.options`
+    prior to `step()`.
     """
 
     def __init__(self, services, config):
+        """Construct the worker and initialise default 2D turbulence options."""
         super().__init__(services, config)
         self.options = options_defaults.copy()
 
     def step(self, timestamp=0.0):
-        """
-
-        # Inputs
-
-        self.options   : dict of settings
-
-        # Calling BOUT++
-
-        To run BOUT++, set the following
-
-        self.restarting       Bool   : True if restarting from previous solution
-        self.OPTIONS_INP      String : Path to BOUT.inp options file
-
-        and then call super().step(timestamp)
-
-        """
+        """Write `BOUT.inp` for the 2D turbulence case and run Hermes-3."""
         self.services.info(f"Hermes 2D (drift plane) turbulence worker step {timestamp}")
 
         cwd = self.services.get_working_dir()

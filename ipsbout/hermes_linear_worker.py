@@ -137,38 +137,61 @@ options_defaults = {
 
 
 class hermes_linear_worker(bout_worker):
-    """
-    Hermes-3 linear machine turbulence simulation.
-    Inherits from `bout_worker` so that its functionality for running BOUT++
-    simulations can be reused.
+    """Hermes-3 linear-machine turbulence worker.
+
+    This component:
+
+    1. Stages any configured input files.
+    2. Stages the grid file (and optionally other state) into the working dir.
+    3. Writes a `BOUT.inp` from `options_template`.
+    4. Runs Hermes-3 via :class:`ipsbout.bout_worker.bout_worker`.
+    5. Post-processes `BOUT.dmp.bp` into a compact NetCDF summary file
+       (`PLASMAFILE`) containing time-averaged `Ne` and `Te`.
+    6. Stages outputs and updates IPS state.
+
+    Configuration parameters
+    ------------------------
+    Required (typical IPS config keys):
+    - ``GRIDFILE``: BOUT++ grid file (usually provided via state).
+    - ``PLASMAFILE``: output NetCDF plasma summary file.
+    - ``BIN_PATH``: Hermes-3 executable path.
+    - ``NPROC``: requested processor count.
+
+    Optional:
+    - ``RESTART_TARFILE``: path to a restart tarball; if present, it is used
+      and updated by :meth:`ipsbout.bout_worker.bout_worker.step`.
+    - ``NEUTRAL_DENSITY`` / ``NEUTRAL_TEMPERATURE``: injected into the input
+      template.
+
+    State-file handling (deviation from common IPS patterns)
+    --------------------------------------------------------
+    Standard IPS usage is to put all persistent state in ``STATE_FILES`` and
+    call `stage_state()` / `update_state()` with that list.
+
+    This worker supports an additional split:
+    - ``INPUT_STATE_FILES``: extra files to stage *in* for this step.
+    - ``OUTPUT_STATE_FILES``: extra files to update *out* after this step.
+
+    The union of ``STATE_FILES`` + ``INPUT_STATE_FILES`` is staged in, and the
+    union of ``STATE_FILES`` + ``OUTPUT_STATE_FILES`` is updated out. This is
+    used in ``examples/proto_mpex/ipsbout.config`` to read `GRIDFILE` from the
+    state but only persist the restart tarball (plus optional derived products).
     """
 
     def __init__(self, services, config):
+        """Construct the worker and initialise default Hermes options."""
         super().__init__(services, config)
         self.transport_options = options_defaults.copy()
 
     def step(self, timestamp=0.0):
-        """
+        """Run Hermes-3 and write a condensed plasma-profile output.
 
-        # Inputs
+        The Hermes run is executed by calling :meth:`bout_worker.step` after
+        generating a `BOUT.inp` in the working directory.
 
-        GRIDFILE              String : Path to the grid file
-        PLASMAFILE            String : Output plasma state
-        NEUTRAL_DENSITY       Float : Number density in m^-3
-        NEUTRAL_TEMPERATURE   Float : Temperature in eV
-
-        # Calling BOUT++
-
-        To run BOUT++, set the following
-
-        self.OPTIONS_INP      String : Path to BOUT.inp options file
-
-        and optionally:
-
-        self.RESTART_TARFILE  String : Path to BOUT.restart.tar file
-
-        and then call super().step(timestamp)
-
+        This method expects the Hermes executable to produce `BOUT.dmp.bp`
+        (ADIOS2 output). The post-processing step uses `xbout` to read that
+        dataset and writes `PLASMAFILE` as a NetCDF file.
         """
         self.services.info(f"Hermes linear machine worker step {timestamp}")
 

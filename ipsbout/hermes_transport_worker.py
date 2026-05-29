@@ -197,33 +197,29 @@ options_defaults = {
 
 
 class hermes_transport_worker(bout_worker):
-    """
-    Hermes-3 transport simulation.
-    Inherits from `bout_worker` so that its functionality for running BOUT++
-    simulations can be reused.
+    """Hermes-3 transport worker.
+
+    This worker writes a `BOUT.inp` for a 2D transport setup and then runs the
+    configured Hermes-3 executable via :class:`ipsbout.bout_worker.bout_worker`.
+
+    Configuration parameters
+    ------------------------
+    Required:
+    - ``GRIDFILE``: path to a BOUT++ grid file available in the working dir.
+    - ``BIN_PATH``: Hermes-3 executable path.
+    - ``NPROC``: requested processor count.
+
+    Template parameters are taken from ``options_defaults`` and may be
+    overridden by mutating ``self.transport_options`` before calling `step()`.
     """
 
     def __init__(self, services, config):
+        """Construct the worker and initialise default transport options."""
         super().__init__(services, config)
         self.transport_options = options_defaults.copy()
 
     def step(self, timestamp=0.0):
-        """
-
-        # Inputs
-
-        GRIDFILE              String : Path to the grid file
-
-        # Calling BOUT++
-
-        To run BOUT++, set the following
-
-        self.restarting       Bool   : True if restarting from previous solution
-        self.OPTIONS_INP      String : Path to BOUT.inp options file
-
-        and then call super().step(timestamp)
-
-        """
+        """Write `BOUT.inp` for the transport case and run Hermes-3."""
         self.services.info(f"Hermes transport worker step {timestamp}")
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
