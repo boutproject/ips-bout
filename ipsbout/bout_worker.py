@@ -1,5 +1,7 @@
 from ipsframework import Component
 import logging
+import tarfile
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +21,8 @@ class bout_worker(Component):
     GRIDFILE = BOUT++ grid file
     BIN_PATH = BOUT++ executable
 
-    The following options should be set:
-
-    INPUT_FILES = ${OPTIONS_INP} ${GRIDFILE}
-    OUTPUT_FILES =
-
+    ## Optional inputs
+    RESTART_TARFILE = BOUT++ restart tarfile
     """
 
     def __init__(self, services, config):
@@ -32,7 +31,6 @@ class bout_worker(Component):
         """
         super().__init__(services, config)
         logger.info(f"Created {self.__class__}")
-        self.restarting = False
 
     def step(self, timestamp=0.0):
         """
@@ -56,6 +54,12 @@ class bout_worker(Component):
         if (not hasattr(self, "NPROC")) or (self.NPROC == ""):
             raise ValueError("NPROC must be set to a number of processors")
 
+        restarting = hasattr(self, "RESTART_TARFILE") and (self.RESTART_TARFILE != "")
+        if restarting:
+            logger.info(f"Extracting restart tarfile '{self.RESTART_TARFILE}'")
+            with tarfile.open(self.RESTART_TARFILE, "r:*") as tar:
+                tar.extractall()
+
         logger.info(f"Running executable  : {self.BIN_PATH}")
 
         cwd = self.services.get_working_dir()
@@ -66,7 +70,7 @@ class bout_worker(Component):
 
         # Command line argument "-f <option file> -d <data file>"
         command_line_args = f"-f {self.OPTIONS_INP} -d {cwd}"
-        if self.restarting:
+        if restarting:
             command_line_args += " restart"
 
         # Run simulation
@@ -76,15 +80,23 @@ class bout_worker(Component):
         )
         retcode = self.services.wait_task(task_id)
 
-        logger.debug("Finished BOUT++ step")
-        self.restarting = True  # A following step will restart
+        # Tar restart file
+        restart_files = list(Path.cwd().glob("BOUT.restart*.nc")) + list(Path.cwd().glob("BOUT.restart.bp"))
+        logger.info(f"Saving restart files {restart_files}")
 
-    def restart(self, timestamp=0.0):
-        """
-        Called to restart a simulation from a previous simulation step
-        """
-        logger.debug("BOUT++ restart")
-        self.restarting = False  # Used later when running BOUT++
+        restart_tarfile = self.RESTART_TARFILE if restarting else "BOUT.restart.tar"
+        with tarfile.open(restart_tarfile, "w") as tar:
+            for file in restart_files:
+                # arcname ensures the file doesn't store the full absolute path
+                tar.add(file, arcname=file.name)
+        logger.info(f"Restarts saved to tarfile '{restart_tarfile}'")
+
+        # Next step use this tarfile
+        # The content of the working directory persist between `step`
+        # calls so this restart file will be present next call.
+        self.RESTART_TARFILE = restart_tarfile
+
+        logger.debug("Finished BOUT++ step")
 
     def num_processors(self, max_nprocs: int) -> int:
         """Return the number of processors to be used, that is
@@ -98,11 +110,11 @@ class bout_worker(Component):
         with DataFile(self.GRIDFILE) as g:
             nx = g["nx"]
             ny = g["ny"]
-            jyseps1_1 = g["jyseps1_1"]
-            jyseps1_2 = g["jyseps1_2"]
-            jyseps2_1 = g["jyseps2_1"]
-            jyseps2_2 = g["jyseps2_2"]
-            ny_inner = g["ny_inner"]
+            jyseps1_1 = g.get("jyseps1_1", -1)
+            jyseps1_2 = g.get("jyseps1_2", ny // 2)
+            jyseps2_1 = g.get("jyseps2_1", jyseps1_2)
+            jyseps2_2 = g.get("jyseps2_2", ny - 1)
+            ny_inner = g.get("ny_inner", jyseps2_1)
 
         MX = nx - 2 * MXG  # Number of points in X on each processor
 

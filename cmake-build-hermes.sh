@@ -5,6 +5,10 @@
 # - cmake
 # - fftw
 # - NetCDF, NetCDF-C++
+#
+# Downloads:
+# - SUNDIALS
+# - ADIOS2
 
 # Fetch Hermes-3
 git submodule update --init

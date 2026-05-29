@@ -165,8 +165,11 @@ class hermes_linear_worker(bout_worker):
 
         To run BOUT++, set the following
 
-        self.restarting       Bool   : True if restarting from previous solution
         self.OPTIONS_INP      String : Path to BOUT.inp options file
+
+        and optionally:
+
+        self.RESTART_TARFILE  String : Path to BOUT.restart.tar file
 
         and then call super().step(timestamp)
 
@@ -174,7 +177,10 @@ class hermes_linear_worker(bout_worker):
         logger.info(f"Hermes linear machine worker step {timestamp}")
 
         self.services.stage_input_files(self.INPUT_FILES)
-        self.services.stage_state()  # Fetch GRIDFILE
+
+        input_state_files = getattr(self, 'STATE_FILES', '').split() + getattr(self, 'INPUT_STATE_FILES', '').split()
+        logger.info(f"Staging state files {input_state_files}")
+        self.services.stage_state(state_files=input_state_files)
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
             raise ValueError("GRIDFILE must be set to the input grid file.")
@@ -247,5 +253,9 @@ class hermes_linear_worker(bout_worker):
 
         logger.info(f"Plasma state written to {self.PLASMAFILE}")
 
-        self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
-        self.services.update_state()  # Update state files
+        if hasattr(self, "OUTPUT_FILES"):
+            self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
+
+        output_state_files = getattr(self, 'STATE_FILES', '').split() + getattr(self, 'OUTPUT_STATE_FILES', '').split()
+        logger.info(f"Updating state files {output_state_files}")
+        self.services.update_state(state_files=output_state_files)  # Update plasma state
