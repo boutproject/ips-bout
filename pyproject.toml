@@ -24,6 +24,8 @@ dependencies = [
     "ipsframework",
     "hypnotoad",
     "numpy",
+    "xbout",
+    "boututils"
 ]
 dynamic = ["version"]
 
