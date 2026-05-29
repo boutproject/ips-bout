@@ -1,7 +1,4 @@
 from ipsframework import Component
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class hermes_transport_driver(Component):
@@ -15,8 +12,6 @@ class hermes_transport_driver(Component):
 
     def __init__(self, services, config):
         super().__init__(services, config)
-        logging.basicConfig(level=logging.INFO)
-        logger.info(f"Created {self.__class__}")
 
     def restart(self):
         pass
@@ -24,13 +19,13 @@ class hermes_transport_driver(Component):
     def step(self, timestamp=0.0):
         try:
             worker_comp = self.services.get_port("GRIDGEN")
-            logger.info("Generating grid")
+            self.services.info("Generating grid")
             self.services.call(worker_comp, "step", 0.0)
-            logger.info("Finished generating grid")
+            self.services.info("Finished generating grid")
         except KeyError:
-            logger.info("Skipping grid generation")
+            self.services.info("Skipping grid generation")
 
-        logger.info("Running transport step")
+        self.services.info("Running transport step")
         worker = self.services.get_port("TRANSPORT")
         self.services.call(worker, "step", 0.0)
-        logger.info("Finished")
+        self.services.info("Finished")

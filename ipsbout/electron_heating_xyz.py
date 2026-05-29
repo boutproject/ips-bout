@@ -1,10 +1,6 @@
-from ipsframework import Component
-from boututils.datafile import DataFile
 import numpy as np
-
-import logging
-
-logger = logging.getLogger(__name__)
+from boututils.datafile import DataFile
+from ipsframework import Component
 
 
 class electron_heating_xyz(Component):
@@ -102,7 +98,6 @@ class electron_heating_xyz(Component):
             empty string.
         """
         super().__init__(services, config)
-        logger.info(f"Created {self.__class__}")
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
             raise ValueError(
@@ -369,7 +364,7 @@ class electron_heating_xyz(Component):
             or negative.  See :meth:`_interpolate_to_mesh` for details.
         """
         self.services.stage_input_files(self.INPUT_FILES)
-        self.services.stage_state() # Fetch GRIDFILE to be modified
+        self.services.stage_state()  # Fetch GRIDFILE to be modified
 
         xyz, Q = self._load_heating_data(self.HEATING_FILE, self.axial_offset)
 
@@ -387,12 +382,14 @@ class electron_heating_xyz(Component):
             xyz, Q, grid_x, grid_y, grid_z, dV_xyz
         )
 
-        logger.info(
+        self.services.info(
             f"Maximum power density: input {np.amax(Q):.3e} W/m³ "
             f"-> interpolated {np.amax(grid_values):.3e} W/m³"
         )
-        logger.info(f"Total domain volume: {np.sum(dV_xyz):.4e} m³")
-        logger.info(f"Total input power before normalisation: {total_power:.4e} W")
+        self.services.info(f"Total domain volume: {np.sum(dV_xyz):.4e} m³")
+        self.services.info(
+            f"Total input power before normalisation: {total_power:.4e} W"
+        )
 
         Pe_src = self._compute_Pe_src(
             grid_values, ymin, ymax, total_power, self.total_power, dV_xyz
@@ -401,7 +398,7 @@ class electron_heating_xyz(Component):
         with DataFile(self.GRIDFILE, write=True) as grid:
             grid["Pe_src"] = Pe_src
 
-        logger.info(f"Pe_src written to {self.GRIDFILE}")
+        self.services.info(f"Pe_src written to {self.GRIDFILE}")
 
         self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
-        self.services.update_state() # Update GRIDFILE in the state
+        self.services.update_state()  # Update GRIDFILE in the state

@@ -11,11 +11,8 @@ except ModuleNotFoundError:
 
 
 import json
-import logging
 
 import numpy as np
-
-logger = logging.getLogger(__name__)
 
 
 def imas_coils(pf_active):
@@ -302,16 +299,19 @@ class linear_mesh_generator(Component):
             simulation config file.  The framework uses this to inject
             attributes onto ``self`` before this method is called.
 
+        """
+        super().__init__(services, config)
+
+    def init(self, timestamp=0.0):
+        """
         Raises
         ------
         ValueError
             If ``MACHINE_FILE``, ``GRIDFILE``, ``N_RADIAL_CELLS``,
             ``N_AXIAL_CELLS``, ``R_MIN``, ``R_MAX``, ``Z_MIN``, or ``Z_MAX``
             is absent from the configuration or is set to an empty string.
-        """
-        super().__init__(services, config)
-        logger.info(f"Created {self.__class__}")
 
+        """
         if (not hasattr(self, "MACHINE_FILE")) or (self.MACHINE_FILE == ""):
             raise ValueError(
                 "MACHINE_FILE must be set to the machine description JSON file"
@@ -399,8 +399,8 @@ class linear_mesh_generator(Component):
 
         from . import MirrorMesh as mm
 
-        logger.debug(f"INPUT_FILES: {self.INPUT_FILES}")
-        logger.debug(f"OUTPUT_FILES: {self.OUTPUT_FILES}")
+        self.services.info(f"INPUT_FILES: {self.INPUT_FILES}")
+        self.services.info(f"OUTPUT_FILES: {self.OUTPUT_FILES}")
 
         with open(self.MACHINE_FILE, "r") as f:
             machine_data = json.load(f)

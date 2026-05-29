@@ -1,7 +1,4 @@
 from ipsframework import Component
-import logging
-
-logger = logging.getLogger(__name__)
 
 class hermes_linear_driver(Component):
     """
@@ -33,9 +30,9 @@ class hermes_linear_driver(Component):
             try:
                 component = self.services.get_port(name)
             except KeyError:
-                logger.warning(f"Port '{name}' not found. Skipping")
+                self.services.info(f"Port '{name}' not found. Skipping")
                 continue
-            logger.info(f"Running port '{name}'")
+            self.services.info(f"Running port '{name}'")
             self.services.call(component, "init", timeStamp)
             self.services.call(component, "step", timeStamp)
             self.services.call(component, "finalize", timeStamp)

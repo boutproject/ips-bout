@@ -4,9 +4,6 @@
 
 from .bout_worker import bout_worker
 import os
-import logging
-
-logger = logging.getLogger(__name__)
 
 # BOUT.inp settings file
 options_template = """
@@ -136,7 +133,6 @@ class hermes_2Dturb_worker(bout_worker):
 
     def __init__(self, services, config):
         super().__init__(services, config)
-        logger.info(f"Created {self.__class__}")
         self.options = options_defaults.copy()
 
     def step(self, timestamp=0.0):
@@ -156,14 +152,14 @@ class hermes_2Dturb_worker(bout_worker):
         and then call super().step(timestamp)
 
         """
-        logger.info(f"Hermes 2D (drift plane) turbulence worker step {timestamp}")
+        self.services.info(f"Hermes 2D (drift plane) turbulence worker step {timestamp}")
 
         cwd = self.services.get_working_dir()
 
         options_file = os.path.join(cwd, "BOUT.inp")
 
-        logger.info(f"Options file : {options_file}")
-        logger.info(f"Options      : {self.options}")
+        self.services.info(f"Options file : {options_file}")
+        self.services.info(f"Options      : {self.options}")
 
         with open(options_file, "wt") as f:
             f.write(options_template.format(**self.options))

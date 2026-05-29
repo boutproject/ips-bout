@@ -2,7 +2,6 @@
 Linear machine turbulence simulations with Hermes-3/BOUT++
 """
 
-import logging
 import os
 
 import numpy as np
@@ -10,8 +9,6 @@ import xbout
 from boututils.datafile import DataFile
 
 from .bout_worker import bout_worker
-
-logger = logging.getLogger(__name__)
 
 # BOUT.inp settings file for Hermes-3 turbulence simulation
 options_template = """
@@ -148,7 +145,6 @@ class hermes_linear_worker(bout_worker):
 
     def __init__(self, services, config):
         super().__init__(services, config)
-        logger.info(f"Created {self.__class__}")
         self.transport_options = options_defaults.copy()
 
     def step(self, timestamp=0.0):
@@ -174,12 +170,12 @@ class hermes_linear_worker(bout_worker):
         and then call super().step(timestamp)
 
         """
-        logger.info(f"Hermes linear machine worker step {timestamp}")
+        self.services.info(f"Hermes linear machine worker step {timestamp}")
 
         self.services.stage_input_files(self.INPUT_FILES)
 
         input_state_files = getattr(self, 'STATE_FILES', '').split() + getattr(self, 'INPUT_STATE_FILES', '').split()
-        logger.info(f"Staging state files {input_state_files}")
+        self.services.info(f"Staging state files {input_state_files}")
         self.services.stage_state(state_files=input_state_files)
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
@@ -207,8 +203,8 @@ class hermes_linear_worker(bout_worker):
 
         options_file = os.path.join(cwd, "BOUT.inp")
 
-        logger.info(f"Options file : {options_file}")
-        logger.info(f"Options      : {self.transport_options}")
+        self.services.info(f"Options file : {options_file}")
+        self.services.info(f"Options      : {self.transport_options}")
 
         with open(options_file, "wt") as f:
             f.write(options_template.format(**self.transport_options))
@@ -251,11 +247,11 @@ class hermes_linear_worker(bout_worker):
             f["average_time_us"] = float(t_array[-1] - t_array[0])
             f["simulation_time_us"] = float(t_array[-1])
 
-        logger.info(f"Plasma state written to {self.PLASMAFILE}")
+        self.services.info(f"Plasma state written to {self.PLASMAFILE}")
 
         if hasattr(self, "OUTPUT_FILES"):
             self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
 
         output_state_files = getattr(self, 'STATE_FILES', '').split() + getattr(self, 'OUTPUT_STATE_FILES', '').split()
-        logger.info(f"Updating state files {output_state_files}")
+        self.services.info(f"Updating state files {output_state_files}")
         self.services.update_state(state_files=output_state_files)  # Update plasma state

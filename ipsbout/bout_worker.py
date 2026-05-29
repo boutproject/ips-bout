@@ -1,11 +1,8 @@
-from ipsframework import Component
-import logging
 import tarfile
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
 from boututils.datafile import DataFile
+from ipsframework import Component
 
 
 class bout_worker(Component):
@@ -30,7 +27,6 @@ class bout_worker(Component):
         Starting a new simulation
         """
         super().__init__(services, config)
-        logger.info(f"Created {self.__class__}")
 
     def step(self, timestamp=0.0):
         """
@@ -40,7 +36,7 @@ class bout_worker(Component):
         will be used if necessary to decompose the grid file equally
         between processors.
         """
-        logger.info(f"BOUT++ step {timestamp}")
+        self.services.info(f"BOUT++ step {timestamp}")
 
         if (not hasattr(self, "OPTIONS_INP")) or (self.OPTIONS_INP == ""):
             raise ValueError("OPTIONS_INP must be set to the input options file path")
@@ -56,17 +52,17 @@ class bout_worker(Component):
 
         restarting = hasattr(self, "RESTART_TARFILE") and (self.RESTART_TARFILE != "")
         if restarting:
-            logger.info(f"Extracting restart tarfile '{self.RESTART_TARFILE}'")
+            self.services.info(f"Extracting restart tarfile '{self.RESTART_TARFILE}'")
             with tarfile.open(self.RESTART_TARFILE, "r:*") as tar:
                 tar.extractall()
 
-        logger.info(f"Running executable  : {self.BIN_PATH}")
+        self.services.info(f"Running executable  : {self.BIN_PATH}")
 
         cwd = self.services.get_working_dir()
-        logger.info(f"Working directory   : {cwd}")
+        self.services.info(f"Working directory   : {cwd}")
 
         ncpu = self.num_processors(int(self.NPROC))
-        logger.info(f"Number of processors: {ncpu}")
+        self.services.info(f"Number of processors: {ncpu}")
 
         # Command line argument "-f <option file> -d <data file>"
         command_line_args = f"-f {self.OPTIONS_INP} -d {cwd}"
@@ -74,29 +70,31 @@ class bout_worker(Component):
             command_line_args += " restart"
 
         # Run simulation
-        logger.info(f"Arguments           : {command_line_args}")
+        self.services.info(f"Arguments           : {command_line_args}")
         task_id = self.services.launch_task(
             ncpu, cwd, self.BIN_PATH, command_line_args, logfile="bout.log"
         )
         retcode = self.services.wait_task(task_id)
 
         # Tar restart file
-        restart_files = list(Path.cwd().glob("BOUT.restart*.nc")) + list(Path.cwd().glob("BOUT.restart.bp"))
-        logger.info(f"Saving restart files {restart_files}")
+        restart_files = list(Path.cwd().glob("BOUT.restart*.nc")) + list(
+            Path.cwd().glob("BOUT.restart.bp")
+        )
+        self.services.info(f"Saving restart files {restart_files}")
 
         restart_tarfile = self.RESTART_TARFILE if restarting else "BOUT.restart.tar"
         with tarfile.open(restart_tarfile, "w") as tar:
             for file in restart_files:
                 # arcname ensures the file doesn't store the full absolute path
                 tar.add(file, arcname=file.name)
-        logger.info(f"Restarts saved to tarfile '{restart_tarfile}'")
+        self.services.info(f"Restarts saved to tarfile '{restart_tarfile}'")
 
         # Next step use this tarfile
         # The content of the working directory persist between `step`
         # calls so this restart file will be present next call.
         self.RESTART_TARFILE = restart_tarfile
 
-        logger.debug("Finished BOUT++ step")
+        self.services.info("Finished BOUT++ step")
 
     def num_processors(self, max_nprocs: int) -> int:
         """Return the number of processors to be used, that is

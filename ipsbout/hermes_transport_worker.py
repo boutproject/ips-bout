@@ -2,12 +2,9 @@
 Transport simulations with Hermes-3/BOUT++
 """
 
-import logging
 import os
 
 from .bout_worker import bout_worker
-
-logger = logging.getLogger(__name__)
 
 # BOUT.inp settings file for Hermes-3 transport simulation
 options_template = """
@@ -208,7 +205,6 @@ class hermes_transport_worker(bout_worker):
 
     def __init__(self, services, config):
         super().__init__(services, config)
-        logger.info(f"Created {self.__class__}")
         self.transport_options = options_defaults.copy()
 
     def step(self, timestamp=0.0):
@@ -228,7 +224,7 @@ class hermes_transport_worker(bout_worker):
         and then call super().step(timestamp)
 
         """
-        logger.info(f"Hermes transport worker step {timestamp}")
+        self.services.info(f"Hermes transport worker step {timestamp}")
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
             raise ValueError("GRIDFILE must be set to the input grid file.")
@@ -239,8 +235,8 @@ class hermes_transport_worker(bout_worker):
 
         options_file = os.path.join(cwd, "BOUT.inp")
 
-        logger.info(f"Options file : {options_file}")
-        logger.info(f"Options      : {self.transport_options}")
+        self.services.info(f"Options file : {options_file}")
+        self.services.info(f"Options      : {self.transport_options}")
 
         with open(options_file, "wt") as f:
             f.write(options_template.format(**self.transport_options))
