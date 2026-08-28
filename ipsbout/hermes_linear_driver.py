@@ -35,10 +35,13 @@ class hermes_linear_driver(Component):
         (typically by listing them in `STATE_FILES` and calling
         `services.update_state()`).
         """
-        gridgen = self.services.get_port("GRIDGEN")
-        self.services.call(gridgen, "init", timeStamp)
-        self.services.call(gridgen, "step", timeStamp)
-        self.services.call(gridgen, "finalize", timeStamp)
+        try:
+            gridgen = self.services.get_port("GRIDGEN")
+            self.services.call(gridgen, "init", timeStamp)
+            self.services.call(gridgen, "step", timeStamp)
+            self.services.call(gridgen, "finalize", timeStamp)
+        except KeyError:
+            self.services.warning(f"Port 'GRIDGEN' not found. Skipping")
 
         # Stage any initial state files
         # This can be used to copy an initial restart file

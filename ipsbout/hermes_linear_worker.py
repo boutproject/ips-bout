@@ -12,8 +12,8 @@ from .bout_worker import bout_worker
 
 # BOUT.inp settings file for Hermes-3 turbulence simulation
 options_template = """
-nout = {nout}               # Number of output steps
-timestep = {timestep}       # Output timestep, normalised ion cyclotron times [1/Omega_ci]
+nout = {NOUT}               # Number of output steps
+timestep = {TIMESTEP}       # Output timestep, normalised ion cyclotron times [1/Omega_ci]
 
 [output]
 type = adios
@@ -22,7 +22,7 @@ type = adios
 type = adios
 
 [mesh]
-file = "{gridfile}"
+file = "{GRIDFILE}"
 
 calcParallelSlices_on_communicate = false
 extrapolate_y = false  # Can result in negative Jacobians in guard cells
@@ -59,9 +59,9 @@ phi_boundary_relax = true
 phi_boundary_timescale = 1e-6
 
 [sheath_boundary_penalty]
-gamma_e = {sheath_gamma_e}
-gamma_i = {sheath_gamma_i}
-penalty_timescale = {penalty_timescale} # Seconds
+gamma_e = {SHEATH_GAMMA_E}
+gamma_i = {SHEATH_GAMMA_I}
+penalty_timescale = {PENALTY_TIMESCALE} # Seconds
 surface_terms = true
 
 ################################################################
@@ -111,9 +111,9 @@ type = fixed_density, fixed_velocity, isothermal
 AA = 2       # Atomic mass
 charge = 0
 
-density = {neutral_density}      # Density in m^-3
+density = {NEUTRAL_DENSITY}      # Density in m^-3
 velocity = 0        # Parallel flow velocity in m/s
-temperature = {neutral_temperature}   # Atom temperature in eV
+temperature = {NEUTRAL_TEMPERATURE}   # Atom temperature in eV
 
 ################################################################
 
@@ -125,14 +125,14 @@ type = (
 """
 
 options_defaults = {
-    "nout": 400,
-    "timestep": 100,
-    "gridfile": "",
-    "sheath_gamma_e": 3.5,
-    "sheath_gamma_i": 3.5,
-    "penalty_timescale": 1e-4,
-    "neutral_density": 1e19,
-    "neutral_temperature": 0.1,
+    "NOUT": 2,
+    "TIMESTEP": 1e-3,
+    "GRIDFILE": "",
+    "SHEATH_GAMMA_E": 3.5,
+    "SHEATH_GAMMA_I": 3.5,
+    "PENALTY_TIMESCALE": 1e-4,
+    "NEUTRAL_DENSITY": 1e19,
+    "NEUTRAL_TEMPERATURE": 0.1,
 }
 
 
@@ -162,6 +162,9 @@ class hermes_linear_worker(bout_worker):
       and updated by :meth:`ipsbout.bout_worker.bout_worker.step`.
     - ``NEUTRAL_DENSITY`` / ``NEUTRAL_TEMPERATURE``: injected into the input
       template.
+    - ``NOUT`` and ``TIMESTEP`` : Number and size (normalized) of output steps
+    - ``SHEATH_GAMMA_E`` and ``SHEATH_GAMMA_I`` sheath heat transmission factors
+    - ``PENALTY_TIMESCALE`` in seconds
 
     State-file handling (deviation from common IPS patterns)
     --------------------------------------------------------
@@ -203,24 +206,12 @@ class hermes_linear_worker(bout_worker):
 
         if (not hasattr(self, "GRIDFILE")) or (self.GRIDFILE == ""):
             raise ValueError("GRIDFILE must be set to the input grid file.")
-        self.transport_options["gridfile"] = self.GRIDFILE
-
+        
         if (not hasattr(self, "PLASMAFILE")) or (self.PLASMAFILE == ""):
             raise ValueError("PLASMAFILE must be set to the output plasma state file.")
 
-        if (not hasattr(self, "NEUTRAL_DENSITY")) or (self.NEUTRAL_DENSITY == ""):
-            raise ValueError(
-                "NEUTRAL_DENSITY must be set to the neutral atom density in m^-3"
-            )
-        self.transport_options["neutral_density"] = self.NEUTRAL_DENSITY
-
-        if (not hasattr(self, "NEUTRAL_TEMPERATURE")) or (
-            self.NEUTRAL_TEMPERATURE == ""
-        ):
-            raise ValueError(
-                "NEUTRAL_TEMPERATURE must be set to the neutral atom temperature in eV"
-            )
-        self.transport_options["neutral_temperature"] = self.NEUTRAL_TEMPERATURE
+        for key, default_value in self.transport_options.items():
+            self.transport_options[key] = getattr(self, key, default_value)
 
         cwd = self.services.get_working_dir()
 

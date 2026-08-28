@@ -3,3 +3,4 @@ hypnotoad
 boututils
 xarray
 scipy
+matplotlib

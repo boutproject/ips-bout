@@ -190,6 +190,72 @@ def calc_penalty_mask(grid_data, wall_rz):
                 ) / calc_distance(p1, p2)
     return penalty_mask
 
+def plotPenaltyMask(ax, grid_data, penalty_mask):
+    Rxy_corner = grid_data['Rxy_corner']
+    Zxy_corner = grid_data['Zxy_corner']
+    
+    nx, ny = penalty_mask.shape
+    for i in range(nx-1):
+        for j in range(ny-1):
+            penalty = penalty_mask[i, j]
+            if penalty > 0.01:
+                # Add a polygon
+                ax.fill(
+                    [
+                        Zxy_corner[i, j],
+                        Zxy_corner[i, j + 1],
+                        Zxy_corner[i + 1, j + 1],
+                        Zxy_corner[i + 1, j],
+                    ],
+                    [
+                        Rxy_corner[i, j],
+                        Rxy_corner[i, j + 1],
+                        Rxy_corner[i + 1, j + 1],
+                        Rxy_corner[i + 1, j],
+                    ],
+                    "b",
+                    alpha=penalty,
+                )
+
+def plotCoil(axis, R, Z, width):
+    Rt = R + 0.5 * width
+    Rb = R - 0.5 * width
+    Zl = Z - 0.5 * width
+    Zr = Z + 0.5 * width
+    # This makes a square with a cross
+    axis.plot([Zl, Zr, Zl, Zl, Zr, Zl, Zr, Zr],
+              [Rt, Rb, Rb, Rt, Rt, Rb, Rb, Rt], 'k')
+
+def plotCoils(axis, coils):
+    Rs = coils['r']
+    Zs = coils['z']
+    currents = coils['current']
+    for r, z, current in zip(Rs, Zs, currents):
+        plotCoil(axis, r, z - 0.05, 0.05)
+
+def plotGrid(grid_data, wall_rz, penalty_mask, coils, plot_filename):
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap
+    white_cmap = ListedColormap([(1.0, 0.0, 0.0, 0.0)])
+    
+    fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True)
+
+    ax1.plot(grid_data['Zxy'][2,:], grid_data['Bxy'][2,:])
+    ax1.set_ylabel("B near axis [T]")
+
+    ax2.pcolormesh(grid_data['Zxy_corner'], grid_data['Rxy_corner'], grid_data['psi_xy'], 
+                   edgecolors='none', cmap=white_cmap, lw=0.2, alpha=0.8)
+
+    ax2.plot(wall_rz[:,1], wall_rz[:,0], '-b')
+    ax2.set_ylim(0.0, None)
+    ax2.set_xlabel("Z [m]")
+    ax2.set_ylabel("R [m]")
+
+    plotCoils(ax2, coils)
+
+    plotPenaltyMask(ax2, grid_data, penalty_mask)
+    fig.savefig(plot_filename)
+
 
 class linear_mesh_generator(Component):
     """IPS worker component that generates a BOUT++ mesh for a linear plasma device.
@@ -225,7 +291,7 @@ class linear_mesh_generator(Component):
         Path of the BOUT++ NetCDF grid file to be created.  Listed in
         ``OUTPUT_FILES`` so that IPS stages it to the results directory after
         the step completes.
-
+    
     ``N_RADIAL_CELLS`` : int
         Number of cells in the radial (cross-field) direction.  Must be a
         positive integer.
@@ -252,6 +318,9 @@ class linear_mesh_generator(Component):
 
     ``Z_MAX`` : float
         Maximum axial coordinate of the mesh domain in metres.
+
+    ``PLOT_FILE`` : str, optional
+        Name of plot output file e.g. grid.png or linear_mesh.pdf
 
     **Typical config file excerpt**::
 
@@ -432,6 +501,10 @@ class linear_mesh_generator(Component):
 
         with DataFile(self.GRIDFILE, write=True) as f:
             f["penalty_mask"] = penalty_mask
+
+        if (hasattr(self, "PLOT_FILE")) and (self.PLOT_FILE != ""):
+            self.services.info(f"Saving plot to '{self.PLOT_FILE}'")
+            plotGrid(grid_data, wall_rz, penalty_mask, coils, self.PLOT_FILE)
 
         self.services.stage_output_files(timestamp, self.OUTPUT_FILES)
         self.services.update_state()
