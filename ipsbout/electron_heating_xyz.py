@@ -376,11 +376,25 @@ class electron_heating_xyz(Component):
             dx = grid["dx"]
             dy = grid["dy"]
 
+            try:
+                penalty_mask = grid["penalty_mask"]
+
+                if penalty_mask.ndim == 2:
+                    # An [x,y] array. Extend in z
+                    penalty_mask = np.repeat(penalty_mask[..., np.newaxis],
+                                             nz, axis=-1)
+            except KeyError:
+                penalty_mask = 0.0
+
         grid_x, grid_y, grid_z, dV_xyz = self._build_3d_mesh(Rxy, Zxy, J, dx, dy, nz)
 
         grid_values, ymin, ymax, total_power = self._interpolate_to_mesh(
             xyz, Q, grid_x, grid_y, grid_z, dV_xyz
         )
+
+        # Mask so that there aren't heat sources inside the penalty region
+        # penalty_mask is 0 in plasma, 1 outside the wall
+        grid_values *= 1.0 - penalty_mask
 
         self.services.info(
             f"Maximum power density: input {np.amax(Q):.3e} W/m³ "
